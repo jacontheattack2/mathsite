@@ -1,246 +1,775 @@
-<!doctype html>
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Web Proxy</title>
+<meta name="theme-color" content="#090d18">
+<title>Orbit — Web Proxy</title>
+
 <style>
-  :root {
-    --bg: #0f1115;
-    --panel: #181b22;
-    --border: #2a2f3a;
-    --text: #e6e8ee;
-    --muted: #8a92a3;
-    --accent: #7c9cff;
+:root {
+  color-scheme: dark;
+  --bg: #090d18;
+  --surface: #101725;
+  --surface2: #151e2e;
+  --surface3: #1c2940;
+  --border: #27344a;
+  --text: #edf3ff;
+  --muted: #8593aa;
+  --accent: #829cff;
+  --accent2: #a78bfa;
+  --success: #45d6a1;
+  --danger: #ff7185;
+  --radius: 13px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background:
+    radial-gradient(ellipse at 50% -30%, #24335a 0%, transparent 55%),
+    var(--bg);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+button, input { font: inherit; }
+
+button {
+  cursor: pointer;
+  color: var(--text);
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+header {
+  flex-shrink: 0;
+  padding: 15px 20px 12px;
+  background: rgba(9,13,24,.9);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-bottom: 13px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 750;
+  font-size: 17px;
+  letter-spacing: -.5px;
+}
+
+.logo {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #799bff, #a77cf5);
+  color: white;
+  font-size: 19px;
+  box-shadow: 0 4px 20px #829cff40;
+}
+
+.brand small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 1.4px;
+}
+
+.top-spacer { flex: 1; }
+
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  padding: 7px 11px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 30px;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+.toolbar {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+
+.icon-btn {
+  flex-shrink: 0;
+  width: 39px;
+  height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 17px;
+  transition: .2s;
+}
+
+.icon-btn:hover:not(:disabled) {
+  background: var(--surface3);
+  color: white;
+}
+
+.icon-btn:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+
+.address-form {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 5px 0 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  transition: .2s;
+}
+
+.address-form:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px #829cff19;
+}
+
+.lock {
+  color: var(--success);
+  font-size: 13px;
+  padding-right: 9px;
+}
+
+#url {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+}
+
+#url::placeholder { color: #63718a; }
+
+.go-btn {
+  height: 34px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 8px;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  background: linear-gradient(110deg, #648cff, #9279ef);
+  transition: .2s;
+}
+
+.go-btn:hover { filter: brightness(1.13); }
+
+.statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 31px;
+  padding: 0 20px;
+  color: var(--muted);
+  font-size: 11px;
+  border-bottom: 1px solid var(--border);
+  background: #0c1220;
+}
+
+#status {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#progress {
+  height: 2px;
+  background: transparent;
+  overflow: hidden;
+}
+
+#progress.active::after {
+  content: "";
+  display: block;
+  height: 100%;
+  width: 35%;
+  background: linear-gradient(90deg, transparent, var(--accent), var(--accent2));
+  animation: progress 1.1s infinite ease-in-out;
+}
+
+@keyframes progress {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(300%); }
+}
+
+main {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+iframe {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border: 0;
+  background: white;
+}
+
+.welcome {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 25px;
+  text-align: center;
+}
+
+.welcome[hidden] { display: none; }
+
+.hero-icon {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 24px;
+  background: linear-gradient(140deg, #1c315c, #302456);
+  border: 1px solid #5169a0;
+  box-shadow: 0 15px 55px #526bca22;
+  font-size: 32px;
+  margin-bottom: 25px;
+}
+
+.welcome h1 {
+  font-size: clamp(23px, 4vw, 34px);
+  letter-spacing: -1.2px;
+  margin: 0 0 10px;
+}
+
+.welcome p {
+  color: var(--muted);
+  max-width: 440px;
+  font-size: 13px;
+  line-height: 1.8;
+  margin: 0;
+}
+
+.hint {
+  margin-top: 25px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.hint span {
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border-radius: 20px;
+}
+
+.history-panel {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 5;
+  width: min(340px, calc(100% - 24px));
+  max-height: 70%;
+  overflow: auto;
+  background: #111a2a;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 20px 70px #0009;
+  padding: 13px;
+}
+
+.history-panel[hidden] { display: none; }
+
+.history-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.history-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 11px;
+  border-radius: 8px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.history-item:hover {
+  background: var(--surface3);
+  color: white;
+}
+
+footer {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 20px;
+  background: #0c1220;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 10px;
+}
+
+footer a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+@media(max-width:600px) {
+  header { padding: 11px; }
+  .topbar { margin-bottom: 10px; }
+  .toolbar { gap: 5px; }
+  .icon-btn { width: 35px; height: 40px; }
+  .statusbar { padding: 0 12px; }
+  footer { padding: 9px 12px; }
+  .status-pill { font-size: 0; }
+  .status-pill .dot { margin: 0; }
+  .go-btn { padding: 0 12px; }
+}
+
+@media(prefers-reduced-motion:reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
   }
-  @media (prefers-color-scheme: light) {
-    :root {
-      --bg: #f5f6f8;
-      --panel: #ffffff;
-      --border: #d9dde5;
-      --text: #1a1d24;
-      --muted: #5c6474;
-      --accent: #3a5bd9;
-    }
-  }
-  * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    display: flex;
-    flex-direction: column;
-  }
-  header {
-    display: flex;
-    gap: 8px;
-    padding: 10px 12px;
-    background: var(--panel);
-    border-bottom: 1px solid var(--border);
-    align-items: center;
-  }
-  .title {
-    font-weight: 600;
-    font-size: 14px;
-    color: var(--muted);
-    white-space: nowrap;
-  }
-  form { display: flex; flex: 1; gap: 8px; }
-  input[type="text"] {
-    flex: 1;
-    padding: 9px 12px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: var(--bg);
-    color: var(--text);
-    font-size: 14px;
-    outline: none;
-    min-width: 0;
-  }
-  input[type="text"]:focus { border-color: var(--accent); }
-  button {
-    padding: 9px 14px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: var(--accent);
-    color: #fff;
-    font-size: 14px;
-    cursor: pointer;
-  }
-  button.ghost {
-    background: transparent;
-    color: var(--text);
-  }
-  #status {
-    padding: 6px 12px;
-    font-size: 12px;
-    color: var(--muted);
-    border-bottom: 1px solid var(--border);
-    background: var(--panel);
-    min-height: 28px;
-  }
-  main { flex: 1; position: relative; }
-  iframe {
-    width: 100%;
-    height: 100%;
-    border: 0;
-    background: #fff;
-  }
-  .empty {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: var(--muted);
-    text-align: center;
-    padding: 24px;
-  }
-  .empty h1 { color: var(--text); font-size: 20px; margin: 0 0 8px; }
-  .empty p { margin: 0; max-width: 420px; line-height: 1.5; }
-  @media (max-width: 600px) {
-    .title { display: none; }
-    header { flex-wrap: wrap; }
-    form { width: 100%; }
-  }
+}
 </style>
 </head>
+
 <body>
+
 <header>
-  <span class="title">Web Proxy</span>
-  <form id="proxy-form" autocomplete="off">
-    <input type="text" id="url" placeholder="Enter a URL, e.g. example.com" spellcheck="false" autocapitalize="off">
-    <button type="submit">Go</button>
-    <button type="button" class="ghost" id="reload" title="Reload">&#x21bb;</button>
-  </form>
-</header>
-<div id="status"></div>
-<main>
-  <div class="empty" id="empty">
-    <h1>Browse through the proxy</h1>
-    <p>Type a web address above and press Go. The page loads inside this window, and links you click keep going through the proxy.</p>
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">✦</div>
+      <div>
+        ORBIT
+        <small>WEB EXPLORER</small>
+      </div>
+    </div>
+
+    <div class="top-spacer"></div>
+
+    <div class="status-pill">
+      <span class="dot"></span>
+      SESSION READY
+    </div>
   </div>
-  <iframe id="frame" hidden sandbox="allow-scripts allow-forms allow-same-origin allow-popups"></iframe>
+
+  <div class="toolbar">
+    <button class="icon-btn" id="back" title="Back" disabled>←</button>
+    <button class="icon-btn" id="forward" title="Forward" disabled>→</button>
+    <button class="icon-btn" id="reload" title="Reload">↻</button>
+
+    <form class="address-form" id="proxy-form">
+      <span class="lock">◇</span>
+      <input
+        type="text"
+        id="url"
+        placeholder="Search or enter a website address..."
+        autocomplete="off"
+        spellcheck="false"
+        autocapitalize="off"
+        aria-label="Website address"
+      >
+      <button class="go-btn" type="submit">GO ↗</button>
+    </form>
+
+    <button class="icon-btn" id="history-btn" title="History">◷</button>
+  </div>
+</header>
+
+<div id="progress"></div>
+
+<div class="statusbar">
+  <span id="status" role="status" aria-live="polite">
+    Ready to explore.
+  </span>
+  <span id="counter">NEW SESSION</span>
+</div>
+
+<main>
+  <div class="welcome" id="welcome">
+    <div class="hero-icon">✦</div>
+    <h1>Your window to the web.</h1>
+    <p>
+      Enter a website address to get started.
+      Explore from one clean, minimal interface.
+    </p>
+    <div class="hint">
+      <span>↵ Enter to navigate</span>
+      <span>⌘ / Ctrl + L to focus address</span>
+      <span>↻ Reload pages</span>
+    </div>
+  </div>
+
+  <iframe
+    id="frame"
+    title="Web content"
+    hidden
+    sandbox="allow-scripts allow-forms allow-popups"
+    referrerpolicy="no-referrer"
+  ></iframe>
+
+  <div class="history-panel" id="history-panel" hidden>
+    <div class="history-head">
+      <span>Recent pages</span>
+      <button class="icon-btn" id="close-history" style="width:30px;height:30px">×</button>
+    </div>
+    <div id="history-list"></div>
+  </div>
 </main>
 
+<footer>
+  <span>ORBIT WEB EXPLORER · CLIENT INTERFACE</span>
+  <span>External sites may not support proxy rendering</span>
+</footer>
+
 <script>
-(function () {
-  // Public CORS proxy used to fetch pages. Swap this for your own endpoint if you run one.
+(() => {
+  "use strict";
+
+  // Replace with a trusted proxy endpoint that you operate.
   const PROXY_BASE = "https://api.cors.lol/url=";
 
-  const form = document.getElementById("proxy-form");
-  const input = document.getElementById("url");
-  const frame = document.getElementById("frame");
-  const empty = document.getElementById("empty");
-  const status = document.getElementById("status");
-  const reloadBtn = document.getElementById("reload");
+  const $ = id => document.getElementById(id);
 
-  let currentUrl = "";
+  const form = $("proxy-form");
+  const input = $("url");
+  const frame = $("frame");
+  const welcome = $("welcome");
+  const status = $("status");
+  const progress = $("progress");
+  const historyPanel = $("history-panel");
+  const historyList = $("history-list");
 
-  function normalize(raw) {
-    let s = raw.trim();
-    if (!s) return null;
-    if (!/^https?:\/\//i.test(s)) s = "https://" + s;
+  const state = {
+    current: "",
+    entries: [],
+    index: -1,
+    request: null,
+    sequence: 0
+  };
+
+  function setStatus(message, error = false) {
+    status.textContent = message;
+    status.style.color = error ? "var(--danger)" : "";
+  }
+
+  function setLoading(active) {
+    progress.classList.toggle("active", active);
+  }
+
+  function normalize(value) {
+    let raw = value.trim();
+    if (!raw) return null;
+
+    // Treat ordinary search terms as search queries.
+    if (!raw.includes(".") && !/^https?:\/\//i.test(raw)) {
+      raw = "https://www.google.com/search?q=" +
+        encodeURIComponent(raw);
+    } else if (!/^https?:\/\//i.test(raw)) {
+      raw = "https://" + raw;
+    }
+
     try {
-      const u = new URL(s);
-      if (u.protocol !== "http:" && u.protocol !== "https:") return null;
-      return u.toString();
-    } catch (e) {
+      const url = new URL(raw);
+
+      if (!["http:", "https:"].includes(url.protocol)) {
+        return null;
+      }
+
+      if (!url.hostname) return null;
+
+      return url.href;
+    } catch {
       return null;
     }
   }
 
-  function setStatus(msg, isError) {
-    status.textContent = msg || "";
-    status.style.color = isError ? "#e5484d" : "";
+  function updateNavigation() {
+    $("back").disabled = state.index <= 0;
+    $("forward").disabled =
+      state.index < 0 || state.index >= state.entries.length - 1;
+
+    $("counter").textContent =
+      state.entries.length + " PAGE" +
+      (state.entries.length === 1 ? "" : "S");
   }
 
-  // Rewrite relative and absolute links in fetched HTML so they keep flowing through the proxy.
-  function rewriteHtml(html, baseUrl) {
-    const doc = new DOMParser().parseFromString(html, "text/html");
+  function renderHistory() {
+    historyList.replaceChildren();
 
-    // Set a base so relative URLs resolve against the real site.
-    let base = doc.querySelector("base");
-    if (!base) {
-      base = doc.createElement("base");
-      doc.head.insertBefore(base, doc.head.firstChild);
-    }
-    base.setAttribute("href", baseUrl);
-
-    // Route link clicks back through this proxy page.
-    doc.querySelectorAll("a[href]").forEach(a => {
-      a.setAttribute("target", "_self");
-      a.addEventListener && 0;
-    });
-
-    // Inject a small script that intercepts link clicks and forms, and asks the parent to navigate.
-    const script = doc.createElement("script");
-    script.textContent = `
-      document.addEventListener("click", function (e) {
-        const a = e.target.closest && e.target.closest("a[href]");
-        if (!a) return;
-        const href = a.href;
-        if (!href || href.startsWith("javascript:") || href.startsWith("#")) return;
-        e.preventDefault();
-        parent.postMessage({ type: "proxy-navigate", url: href }, "*");
-      }, true);
-      document.addEventListener("submit", function (e) {
-        e.preventDefault();
-      }, true);
-    `;
-    doc.body.appendChild(script);
-
-    return "<!doctype html>" + doc.documentElement.outerHTML;
-  }
-
-  async function load(target) {
-    const url = normalize(target);
-    if (!url) {
-      setStatus("That doesn't look like a valid web address.", true);
+    if (!state.entries.length) {
+      const p = document.createElement("p");
+      p.textContent = "No browsing history yet.";
+      p.style.color = "var(--muted)";
+      historyList.appendChild(p);
       return;
     }
 
-    currentUrl = url;
-    input.value = url;
-    setStatus("Loading " + url + " ...");
+    [...state.entries].reverse().forEach((url, reverseIndex) => {
+      const index = state.entries.length - 1 - reverseIndex;
+      const btn = document.createElement("button");
+      btn.className = "history-item";
+      btn.textContent = url;
+      btn.title = url;
 
-    try {
-      const res = await fetch(PROXY_BASE + encodeURIComponent(url));
-      if (!res.ok) throw new Error("Proxy returned HTTP " + res.status);
-      const text = await res.text();
-      const type = res.headers.get("content-type") || "";
+      btn.addEventListener("click", () => {
+        navigateToIndex(index);
+        historyPanel.hidden = true;
+      });
 
-      empty.hidden = true;
-      frame.hidden = false;
+      historyList.appendChild(btn);
+    });
+  }
 
-      if (type.includes("text/html") || /<html|<!doctype/i.test(text)) {
-        frame.srcdoc = rewriteHtml(text, url);
-      } else {
-        // Non-HTML content: show it as plain text in the frame.
-        frame.srcdoc = "<pre style='font:13px monospace;white-space:pre-wrap;padding:12px'>" +
-          text.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])) + "</pre>";
-      }
-      setStatus("Loaded " + url);
-    } catch (err) {
-      setStatus("Could not load the page: " + err.message + ". The site may block proxying.", true);
+  function addHistory(url) {
+    state.entries = state.entries.slice(0, state.index + 1);
+
+    if (state.entries[state.index] !== url) {
+      state.entries.push(url);
+      state.index = state.entries.length - 1;
+    }
+
+    updateNavigation();
+  }
+
+  function escapeHTML(value) {
+    return value.replace(/[&<>"']/g, c => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    })[c]);
+  }
+
+  function renderResponse(text, contentType, baseUrl) {
+    welcome.hidden = true;
+    frame.hidden = false;
+
+    // Only display HTML in the frame if it is actually HTML.
+    if (contentType.includes("text/html")) {
+      // This is a display-only fallback. A complete proxy must
+      // rewrite resources and navigation on the server.
+      const safeText = text.replace(
+        /<base\b[^>]*>/gi, ""
+      );
+
+      frame.srcdoc = safeText;
+    } else if (
+      contentType.startsWith("text/") ||
+      contentType.includes("json") ||
+      contentType.includes("xml")
+    ) {
+      frame.srcdoc = `
+        <!doctype html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body {
+              padding: 24px;
+              font: 14px/1.7 ui-monospace,monospace;
+              white-space: pre-wrap;
+              overflow-wrap: anywhere;
+              color: #202633;
+            }
+          </style>
+        </head>
+        <body>${escapeHTML(text)}</body>
+        </html>
+      `;
+    } else {
+      frame.srcdoc = `
+        <!doctype html>
+        <html>
+        <body style="font:15px system-ui;padding:25px;color:#222">
+          <h2>Unsupported content type</h2>
+          <p>This proxy interface currently displays text and HTML responses.</p>
+          <p>${escapeHTML(contentType || "Unknown content type")}</p>
+          <a href="${escapeHTML(baseUrl)}">Open original address</a>
+        </body>
+        </html>
+      `;
     }
   }
 
-  form.addEventListener("submit", function (e) {
-    e.preventDefault();
+  async function load(raw, addToHistory = true) {
+    const url = normalize(raw);
+
+    if (!url) {
+      setStatus("Please enter a valid HTTP or HTTPS address.", true);
+      return;
+    }
+
+    const sequence = ++state.sequence;
+
+    if (state.request) state.request.abort();
+
+    const controller = new AbortController();
+    state.request = controller;
+
+    state.current = url;
+    input.value = url;
+
+    setLoading(true);
+    setStatus("Connecting to " + new URL(url).hostname + "...");
+
+    try {
+      const response = await fetch(
+        PROXY_BASE + encodeURIComponent(url),
+        {
+          signal: controller.signal,
+          headers: { Accept: "text/html,text/plain,application/json" }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("HTTP " + response.status);
+      }
+
+      const type = response.headers.get("content-type") || "";
+      const text = await response.text();
+
+      if (sequence !== state.sequence) return;
+
+      if (addToHistory) addHistory(url);
+
+      renderResponse(text, type, url);
+      setStatus("Loaded " + new URL(url).hostname);
+    } catch (error) {
+      if (error.name === "AbortError") return;
+
+      if (sequence !== state.sequence) return;
+
+      setStatus("Unable to load page: " + error.message, true);
+    } finally {
+      if (sequence === state.sequence) {
+        setLoading(false);
+        state.request = null;
+      }
+    }
+  }
+
+  function navigateToIndex(index) {
+    if (index < 0 || index >= state.entries.length) return;
+
+    state.index = index;
+    updateNavigation();
+    load(state.entries[index], false);
+  }
+
+  form.addEventListener("submit", event => {
+    event.preventDefault();
     load(input.value);
   });
 
-  reloadBtn.addEventListener("click", function () {
-    if (currentUrl) load(currentUrl);
+  $("reload").addEventListener("click", () => {
+    if (state.current) load(state.current, false);
   });
 
-  window.addEventListener("message", function (e) {
-    if (e.source !== frame.contentWindow) return;
-    if (e.data && e.data.type === "proxy-navigate") load(e.data.url);
+  $("back").addEventListener("click", () => {
+    if (state.index > 0) navigateToIndex(state.index - 1);
   });
+
+  $("forward").addEventListener("click", () => {
+    if (state.index < state.entries.length - 1) {
+      navigateToIndex(state.index + 1);
+    }
+  });
+
+  $("history-btn").addEventListener("click", () => {
+    renderHistory();
+    historyPanel.hidden = !historyPanel.hidden;
+  });
+
+  $("close-history").addEventListener("click", () => {
+    historyPanel.hidden = true;
+  });
+
+  document.addEventListener("keydown", event => {
+    if ((event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === "l") {
+      event.preventDefault();
+      input.focus();
+      input.select();
+    }
+
+    if (event.altKey && event.key === "ArrowLeft") {
+      $("back").click();
+    }
+
+    if (event.altKey && event.key === "ArrowRight") {
+      $("forward").click();
+    }
+
+    if (event.key === "Escape") {
+      historyPanel.hidden = true;
+    }
+  });
+
+  updateNavigation();
+
 })();
 </script>
 </body>
