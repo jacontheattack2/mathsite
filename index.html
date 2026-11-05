@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Web Proxy</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #181b22;
+    --border: #2a2f3a;
+    --text: #e6e8ee;
+    --muted: #8a92a3;
+    --accent: #7c9cff;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f6f8;
+      --panel: #ffffff;
+      --border: #d9dde5;
+      --text: #1a1d24;
+      --muted: #5c6474;
+      --accent: #3a5bd9;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+  }
+  .title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  form { display: flex; flex: 1; gap: 8px; }
+  input[type="text"] {
+    flex: 1;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    min-width: 0;
+  }
+  input[type="text"]:focus { border-color: var(--accent); }
+  button {
+    padding: 9px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--accent);
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  button.ghost {
+    background: transparent;
+    color: var(--text);
+  }
+  #status {
+    padding: 6px 12px;
+    font-size: 12px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    min-height: 28px;
+  }
+  main { flex: 1; position: relative; }
+  iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #fff;
+  }
+  .empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    text-align: center;
+    padding: 24px;
+  }
+  .empty h1 { color: var(--text); font-size: 20px; margin: 0 0 8px; }
+  .empty p { margin: 0; max-width: 420px; line-height: 1.5; }
+  @media (max-width: 600px) {
+    .title { display: none; }
+    header { flex-wrap: wrap; }
+    form { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <span class="title">Web Proxy</span>
+  <form id="proxy-form" autocomplete="off">
+    <input type="text" id="url" placeholder="Enter a URL, e.g. example.com" spellcheck="false" autocapitalize="off">
+    <button type="submit">Go</button>
+    <button type="button" class="ghost" id="reload" title="Reload">&#x21bb;</button>
+  </form>
+</header>
+<div id="status"></div>
+<main>
+  <div class="empty" id="empty">
+    <h1>Browse through the proxy</h1>
+    <p>Type a web address above and press Go. The page loads inside this window, and links you click keep going through the proxy.</p>
+  </div>
+  <iframe id="frame" hidden sandbox="allow-scripts allow-forms allow-same-origin allow-popups"></iframe>
+</main>
+
+<script>
+(function () {
+  // Public CORS proxy used to fetch pages. Swap this for your own endpoint if you run one.
+  const PROXY_BASE = "https://api.cors.lol/url=";
+
+  const form = document.getElementById("proxy-form");
+  const input = document.getElementById("url");
+  const frame = document.getElementById("frame");
+  const empty = document.getElementById("empty");
+  const status = document.getElementById("status");
+  const reloadBtn = document.getElementById("reload");
+
+  let currentUrl = "";
+
+  function normalize(raw) {
+    let s = raw.trim();
+    if (!s) return null;
+    if (!/^https?:\/\//i.test(s)) s = "https://" + s;
+    try {
+      const u = new URL(s);
+      if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+      return u.toString();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function setStatus(msg, isError) {
+    status.textContent = msg || "";
+    status.style.color = isError ? "#e5484d" : "";
+  }
+
+  // Rewrite relative and absolute links in fetched HTML so they keep flowing through the proxy.
+  function rewriteHtml(html, baseUrl) {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+
+    // Set a base so relative URLs resolve against the real site.
+    let base = doc.querySelector("base");
+    if (!base) {
+      base = doc.createElement("base");
+      doc.head.insertBefore(base, doc.head.firstChild);
+    }
+    base.setAttribute("href", baseUrl);
+
+    // Route link clicks back through this proxy page.
+    doc.querySelectorAll("a[href]").forEach(a => {
+      a.setAttribute("target", "_self");
+      a.addEventListener && 0;
+    });
+
+    // Inject a small script that intercepts link clicks and forms, and asks the parent to navigate.
+    const script = doc.createElement("script");
+    script.textContent = `
+      document.addEventListener("click", function (e) {
+        const a = e.target.closest && e.target.closest("a[href]");
+        if (!a) return;
+        const href = a.href;
+        if (!href || href.startsWith("javascript:") || href.startsWith("#")) return;
+        e.preventDefault();
+        parent.postMessage({ type: "proxy-navigate", url: href }, "*");
+      }, true);
+      document.addEventListener("submit", function (e) {
+        e.preventDefault();
+      }, true);
+    `;
+    doc.body.appendChild(script);
+
+    return "<!doctype html>" + doc.documentElement.outerHTML;
+  }
+
+  async function load(target) {
+    const url = normalize(target);
+    if (!url) {
+      setStatus("That doesn't look like a valid web address.", true);
+      return;
+    }
+
+    currentUrl = url;
+    input.value = url;
+    setStatus("Loading " + url + " ...");
+
+    try {
+      const res = await fetch(PROXY_BASE + encodeURIComponent(url));
+      if (!res.ok) throw new Error("Proxy returned HTTP " + res.status);
+      const text = await res.text();
+      const type = res.headers.get("content-type") || "";
+
+      empty.hidden = true;
+      frame.hidden = false;
+
+      if (type.includes("text/html") || /<html|<!doctype/i.test(text)) {
+        frame.srcdoc = rewriteHtml(text, url);
+      } else {
+        // Non-HTML content: show it as plain text in the frame.
+        frame.srcdoc = "<pre style='font:13px monospace;white-space:pre-wrap;padding:12px'>" +
+          text.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])) + "</pre>";
+      }
+      setStatus("Loaded " + url);
+    } catch (err) {
+      setStatus("Could not load the page: " + err.message + ". The site may block proxying.", true);
+    }
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    load(input.value);
+  });
+
+  reloadBtn.addEventListener("click", function () {
+    if (currentUrl) load(currentUrl);
+  });
+
+  window.addEventListener("message", function (e) {
+    if (e.source !== frame.contentWindow) return;
+    if (e.data && e.data.type === "proxy-navigate") load(e.data.url);
+  });
+})();
+</script>
+</body>
+</html>
